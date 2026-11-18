@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Optional gate: blocks a commit when your tests fail.
+#
+# Install in a repo:
+#   cp enforcement/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Set your test command once, either way:
+#   export WORKFLOW_TEST_CMD="npm test"
+#   echo "npm test" > .git/workflow-test-cmd     (a file inside .git, never committed)
+# Remove: delete .git/hooks/pre-commit
+#
+# One layer, not a guarantee: git -c core.hooksPath=... or editing .git skips it.
+set -u
+
+root=$(git rev-parse --show-toplevel) || exit 1
+gitdir=$(cd "$root" && cd "$(git rev-parse --git-common-dir)" && pwd) || exit 1  # shared .git, also inside linked worktrees
+
+cmd=${WORKFLOW_TEST_CMD:-}
+if [ -z "$cmd" ] && [ -f "$gitdir/workflow-test-cmd" ]; then
+  cmd=$(head -n 1 "$gitdir/workflow-test-cmd")
+fi
+
+if [ -z "$cmd" ]; then
+  echo 'pre-commit: no test command set. Run: echo "npm test" > .git/workflow-test-cmd' >&2
+  exit 1
+fi
+
+cd "$root" || exit 1
+if ! sh -c "$cmd"; then
+  echo "pre-commit: tests failed, commit blocked." >&2
+  exit 1
+fi
