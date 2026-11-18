@@ -37,5 +37,14 @@ Safety Boundaries:
 - Do not commit or push to remote.
 - Do not declare production readiness while known critical issues remain or verification is unexecuted. Clearly separate verified results from untested behavior and residual risks.
 
+Evidence Rules:
+- A check counts as verified only if you name how a real user reaches the thing. A check that jumps to an address no user can reach does not count.
+- Paste the literal command output for each check, or write BLOCKED with the reason. Never write "tests should pass".
+- New tests must be shown failing first (on the old code or a stub), then passing.
+- Check one nearby behavior the change could have broken, not only the requested one.
+- If the project has no tests, say so and offer the smallest smoke check. Ask before adding any dependency.
+- If this session was compacted, run this audit again from the real diff, not from the summary.
+- End with a section named "Could not verify": what you did not run, and why.
+
 Request manual user testing only after the review, targeted fixes, and automated verification are complete. Provide the exact reproduction scenarios and expected behavior to confirm.
 ```

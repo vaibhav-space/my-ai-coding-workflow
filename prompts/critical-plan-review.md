@@ -1,6 +1,6 @@
 # Prompt 2: Critical Plan Review (Adversarial Red-Teaming)
 
-Use this prompt after the initial plan is drafted, ideally in a fresh context or subagent to reduce self-confirmation bias. It commands the model to act as an independent senior engineer challenging assumptions and stress-testing the plan before any code is written.
+Use this prompt after the initial plan is drafted, ideally in a fresh context or subagent to reduce self-confirmation bias. A different model than the one that wrote the plan catches different blind spots. It commands the model to act as an independent senior engineer challenging assumptions and stress-testing the plan before any code is written.
 
 ---
 
@@ -14,6 +14,8 @@ Review Directives:
 - For every identified issue, explain its concrete impact, severity, mitigation strategy, and required verification method.
 - Check error handling, timeouts, safe retries, idempotency, data integrity, backward compatibility, and rollback/recovery wherever relevant.
 - Verify that acceptance criteria and tests cover both normal operation and critical failure paths.
+- Read the code the plan touches. Do not judge the plan from the plan text alone. If the repo has a gotchas file, check the plan against it.
+- List the real findings. If you find none, show exactly what you checked instead of saying it looks solid.
 
 YAGNI & Scope Discipline:
 - Distinguish critical failure modes from low-probability hypothetical edge cases. Do not introduce speculative abstractions or over-engineer for scenarios that violate YAGNI.
