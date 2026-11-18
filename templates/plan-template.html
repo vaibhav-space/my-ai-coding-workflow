@@ -1,0 +1,361 @@
+<title>OAuth and Rate Limit Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Public+Sans:wght@400;600;700&display=swap">
+<style>
+/* hallmark v2: theme custom, genre modern-minimal, signature: the live progress bar over the 9 steps; critique: no eyebrows, no tracked caps, labels in body face */
+:root{
+  --bg:#f6f7f5;--panel:#ffffff;--fg:#1b2420;--muted:#59655f;--line:#d9dfda;
+  --accent:#0f6e5c;--accent-soft:#e1f1ed;
+  --add:#16794a;--add-bg:#e4f4ea;--mod:#8a5a00;--mod-bg:#fbf0d9;
+  --crit:#a8261d;--crit-bg:#fbe6e3;--warn:#8a5a00;--warn-bg:#fbf0d9;
+  --b:#2b5fb4;--b-soft:#e3ebf8;
+  --sans:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101614;--panel:#171f1c;--fg:#e5ebe7;--muted:#9aa8a1;--line:#2a3631;
+  --accent:#5fd0b6;--accent-soft:#16312b;
+  --add:#6fd69b;--add-bg:#15301f;--mod:#e8b64d;--mod-bg:#33280f;
+  --crit:#ff9a90;--crit-bg:#3a1b18;--warn:#e8b64d;--warn-bg:#33280f;
+  --b:#8db4f2;--b-soft:#1a2740;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101614;--panel:#171f1c;--fg:#e5ebe7;--muted:#9aa8a1;--line:#2a3631;
+  --accent:#5fd0b6;--accent-soft:#16312b;
+  --add:#6fd69b;--add-bg:#15301f;--mod:#e8b64d;--mod-bg:#33280f;
+  --crit:#ff9a90;--crit-bg:#3a1b18;--warn:#e8b64d;--warn-bg:#33280f;
+  --b:#8db4f2;--b-soft:#1a2740;color-scheme:dark}
+html,body{overflow-x:clip}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.55 var(--sans);margin:0;
+  padding-block:0 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.1;margin:28px 0 8px;font-weight:700;text-wrap:balance;overflow-wrap:break-word;min-width:0}
+h2{font-size:22px;margin:0 0 4px;font-weight:700}
+h3{font-size:16px;margin:0;font-weight:700}
+.lede{font-size:18px;color:var(--muted);margin:0 0 20px;max-width:60ch}
+section{margin-top:48px;scroll-margin-top:72px}
+.sub{color:var(--muted);margin:0 0 16px;max-width:64ch}
+code,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+
+/* sticky bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);
+  margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.bar-in{max-width:980px;margin:0 auto;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.nav{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+.nav button{background:none;border:0;padding:6px 10px;border-radius:6px;color:var(--muted);cursor:pointer;font-size:14px}
+.nav button:hover{background:var(--accent-soft);color:var(--fg)}
+.prog{display:flex;align-items:center;gap:10px;min-width:220px}
+.track{flex:1;height:10px;background:var(--line);border-radius:6px;overflow:hidden;min-width:100px}
+.fill{height:100%;background:var(--accent);width:0;transition:width .3s}
+.prog b{font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* hero stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:20px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.stat b{display:block;font-size:28px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:14px}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;font-size:15px}
+th{font-size:14px;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:1px 9px;border-radius:99px;white-space:nowrap}
+.new{background:var(--add-bg);color:var(--add)}
+.chg{background:var(--mod-bg);color:var(--mod)}
+.sev-major{background:var(--crit-bg);color:var(--crit)}
+.sev-minor{background:var(--warn-bg);color:var(--warn)}
+.pick{background:var(--accent-soft);color:var(--accent)}
+.later{background:var(--b-soft);color:var(--b)}
+.no{background:var(--crit-bg);color:var(--crit)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.seg button{background:var(--panel);border:0;padding:7px 14px;cursor:pointer;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+.seg button+button{border-left:1px solid var(--line)}
+
+/* steps */
+.part{margin:24px 0 8px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.part h3{font-size:18px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.step.done{border-color:var(--accent)}
+.sh{display:flex;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:13px;font-weight:600;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:6px}
+.step.b .badge{background:var(--b-soft);color:var(--b)}
+.sh h3{flex:1;min-width:160px}
+.mins{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.diff{margin:0;border-top:1px solid var(--line);font:13.5px/1.6 var(--mono);overflow-x:auto}
+.diff div{padding:1px 16px;white-space:pre;min-width:max-content}
+.diff .a{background:var(--add-bg);color:var(--add)}
+.diff .m{background:var(--mod-bg);color:var(--mod)}
+.diff .c{color:var(--muted)}
+.check{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer;font-size:15px}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+.step.done .check span{text-decoration:line-through;color:var(--muted)}
+
+/* timeline */
+.tl{padding:16px}
+.tr{display:grid;grid-template-columns:150px 1fr 56px;gap:12px;align-items:center;padding:5px 0;font-size:14px}
+.tr .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane{position:relative;height:18px;background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 1px),var(--line) calc(20% - 1px) 20%)}
+.lane i{position:absolute;top:2px;height:14px;border-radius:5px;background:var(--accent);opacity:.35}
+.lane i.b{background:var(--b)}
+.lane i.on{opacity:1}
+.ticks{display:grid;grid-template-columns:150px 1fr 56px;gap:12px;font-size:12.5px;color:var(--muted)}
+.ticks div:nth-child(2){display:flex;justify-content:space-between}
+
+/* diagrams */
+.dia{padding:12px;overflow-x:auto}
+.dia svg{display:block;width:100%;min-width:560px;height:auto}
+.dia text{fill:var(--fg);font-family:var(--sans)}
+.dia .q{fill:var(--muted)}
+.dia .ln{stroke:var(--muted);stroke-width:1.25;fill:none}
+.dia .life{stroke:var(--line);stroke-dasharray:4 4}
+.dia .bx{fill:none;stroke:var(--muted);stroke-width:1.25}
+.dia .main{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+.dia .stop{fill:var(--crit-bg);stroke:var(--crit);stroke-width:1.25}
+.dia .arr{fill:var(--muted)}
+.cap{color:var(--muted);font-size:14px;margin:8px 4px 0}
+
+/* options */
+.opts{display:grid;gap:16px}
+.dec{padding:16px}
+.dec h3{margin-bottom:10px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.opt{border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-width:0}
+.opt.p{border-color:var(--accent);background:var(--accent-soft)}
+.opt p{margin:6px 0 0;font-size:14.5px}
+.opt .l{color:var(--muted)}
+
+.foot{margin-top:56px;color:var(--muted);font-size:14px}
+@media (max-width:640px){.tr,.ticks{grid-template-columns:100px 1fr 44px}.prog{min-width:100%}}
+@media (prefers-reduced-motion:reduce){.fill{transition:none}}
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="bar-in">
+      <nav class="nav" aria-label="Plan sections">
+        <button data-go="s-files">Files</button>
+        <button data-go="s-flow">Diagrams</button>
+        <button data-go="s-steps">Steps</button>
+        <button data-go="s-time">Timeline</button>
+        <button data-go="s-opts">Options</button>
+        <button data-go="s-risk">Risks</button>
+      </nav>
+      <div class="prog" aria-live="polite">
+        <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="9" aria-valuenow="0" id="pb"><div class="fill" id="pf"></div></div>
+        <b id="pt">0 of 9 done</b>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <h1>Add Google login and rate limits to the API</h1>
+    <p class="lede">Two parts, nine small steps, one afternoon. Tick each step as you finish it and the bar above keeps count.</p>
+    <div class="stats">
+      <div class="stat"><b>9</b><span>steps in total</span></div>
+      <div class="stat"><b>6 new, 3 changed</b><span>files touched</span></div>
+      <div class="stat"><b id="left">5 h</b><span>time left</span></div>
+      <div class="stat"><b>3</b><span>risks rated major</span></div>
+    </div>
+  </header>
+
+  <section id="s-files">
+    <h2>What changes in the code</h2>
+    <p class="sub">The whole diff at a glance. Assumed stack for this example: Node with Express, Redis already running, Google sign-in.</p>
+    <div class="seg" role="group" aria-label="Filter files">
+      <button aria-pressed="true" data-f="all">All 9</button>
+      <button aria-pressed="false" data-f="new">New 6</button>
+      <button aria-pressed="false" data-f="chg">Changed 3</button>
+    </div>
+    <div class="panel scroll"><table>
+      <thead><tr><th>Status</th><th>File</th><th>What it does</th><th>Part</th></tr></thead>
+      <tbody id="ft"></tbody>
+    </table></div>
+  </section>
+
+  <section id="s-flow">
+    <h2>How it works</h2>
+    <p class="sub">Two pictures. Read these before the steps.</p>
+    <div class="panel dia">
+      <svg viewBox="0 0 760 424" role="img" aria-label="Login happens once, then the cookie does the work">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arr"/></marker></defs>
+        <text x="24" y="30" font-size="15" font-weight="600">Login happens once, then the cookie does the work</text>
+        <g class="life"><line x1="110" x2="110" y1="86" y2="376" stroke="var(--line)" stroke-dasharray="4 4"/><line x1="380" x2="380" y1="86" y2="376" stroke="var(--line)" stroke-dasharray="4 4"/><line x1="650" x2="650" y1="86" y2="376" stroke="var(--line)" stroke-dasharray="4 4"/></g>
+        <rect class="bx" x="35" y="52" width="150" height="34" rx="8"/><text x="110" y="74" text-anchor="middle" font-size="13" font-weight="600">Browser</text>
+        <rect class="main" x="305" y="52" width="150" height="34" rx="8"/><text x="380" y="74" text-anchor="middle" font-size="13" font-weight="600">Our API</text>
+        <rect class="bx" x="575" y="52" width="150" height="34" rx="8"/><text x="650" y="74" text-anchor="middle" font-size="13" font-weight="600">Google</text>
+        <g font-size="12.5" text-anchor="middle">
+          <path class="ln" d="M110 120H380" marker-end="url(#a1)"/><text x="245" y="112">1. GET /auth/login</text>
+          <path class="ln" d="M380 160H110" marker-end="url(#a1)"/><text x="245" y="152">2. redirect to Google with state</text>
+          <path class="ln" d="M110 200H650" marker-end="url(#a1)"/><text x="515" y="192">3. user signs in at Google</text>
+          <path class="ln" d="M650 240H110" marker-end="url(#a1)"/><text x="515" y="232">4. redirect back with a code</text>
+          <path class="ln" d="M110 280H380" marker-end="url(#a1)"/><text x="245" y="272">5. callback with code and state</text>
+          <path class="ln" d="M380 320H650" marker-end="url(#a1)"/><text x="515" y="312">6. swap code for tokens</text>
+          <path class="ln" d="M380 360H110" marker-end="url(#a1)"/><text x="245" y="352">7. set 1 hour cookie, logged in</text>
+        </g>
+        <text class="q" x="24" y="408" font-size="11.5">The one check that matters: state in step 5 must match the state saved in step 2, else 400.</text>
+      </svg>
+    </div>
+    <p class="cap">The browser never sees Google's tokens. Only our API swaps the code, then sets a cookie.</p>
+
+    <div class="panel dia" style="margin-top:16px">
+      <svg viewBox="0 0 760 356" role="img" aria-label="Every request passes two gates before it reaches your route">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="arr"/></marker></defs>
+        <text x="24" y="30" font-size="15" font-weight="600">Every request passes two gates before it reaches your route</text>
+        <rect class="bx" x="198" y="56" width="140" height="36" rx="8"/><text x="268" y="79" text-anchor="middle" font-size="13">Redis counter</text>
+        <path class="ln" d="M268 92V126" marker-start="url(#a2)" marker-end="url(#a2)"/>
+        <path class="ln" d="M166 150H198" marker-end="url(#a2)"/><path class="ln" d="M338 150H370" marker-end="url(#a2)"/><path class="ln" d="M510 150H570" marker-end="url(#a2)"/>
+        <path class="ln" d="M268 174V238" marker-end="url(#a2)"/><path class="ln" d="M440 174V238" marker-end="url(#a2)"/>
+        <rect class="bx" x="26" y="126" width="140" height="48" rx="8"/><text x="96" y="148" text-anchor="middle" font-size="13" font-weight="600">Request</text><text class="q" x="96" y="164" text-anchor="middle" font-size="11.5">from the browser</text>
+        <rect class="bx" x="198" y="126" width="140" height="48" rx="8"/><text x="268" y="148" text-anchor="middle" font-size="13" font-weight="600">Rate limiter</text><text class="q" x="268" y="164" text-anchor="middle" font-size="11.5">per user or IP</text>
+        <rect class="bx" x="370" y="126" width="140" height="48" rx="8"/><text x="440" y="148" text-anchor="middle" font-size="13" font-weight="600">requireAuth</text><text class="q" x="440" y="164" text-anchor="middle" font-size="11.5">valid cookie?</text>
+        <rect class="main" x="570" y="126" width="140" height="48" rx="8"/><text x="640" y="148" text-anchor="middle" font-size="13" font-weight="600">Your route</text><text class="q" x="640" y="164" text-anchor="middle" font-size="11.5">runs only here</text>
+        <rect class="stop" x="198" y="238" width="140" height="48" rx="8"/><text x="268" y="260" text-anchor="middle" font-size="13" font-weight="600">429 Too many</text><text class="q" x="268" y="276" text-anchor="middle" font-size="11.5">with Retry-After</text>
+        <rect class="stop" x="370" y="238" width="140" height="48" rx="8"/><text x="440" y="266" text-anchor="middle" font-size="13" font-weight="600">401 Logged out</text>
+        <text class="q" x="278" y="114" font-size="11.5">count +1</text><text class="q" x="278" y="212" font-size="11.5">over limit</text><text class="q" x="450" y="212" font-size="11.5">no valid cookie</text>
+        <text class="q" x="24" y="316" font-size="11.5">Red boxes mean the request stops there and never reaches your code.</text>
+        <text class="q" x="24" y="336" font-size="11.5">The login route has its own stricter limit: 5 attempts per minute.</text>
+      </svg>
+    </div>
+    <p class="cap">The limiter runs first, so a flood of logged-out requests is stopped before any cookie work happens.</p>
+  </section>
+
+  <section id="s-steps">
+    <h2>Steps</h2>
+    <p class="sub">Each step shows its diff, then one check. Tick the check when it passes. Green lines are new, amber lines are edits.</p>
+    <div id="steps"></div>
+  </section>
+
+  <section id="s-time">
+    <h2>Time, step by step</h2>
+    <p class="sub">Bars are drawn to scale in order. A solid bar means the step is done.</p>
+    <div class="panel tl" id="tl"></div>
+  </section>
+
+  <section id="s-opts">
+    <h2>Choices behind the plan</h2>
+    <p class="sub">What I picked, what I rejected, and when each rejected option becomes worth it.</p>
+    <div class="opts" id="opts"></div>
+  </section>
+
+  <section id="s-risk">
+    <h2>Risks and the way back</h2>
+    <div class="panel scroll"><table>
+      <thead><tr><th>Risk</th><th>Fix in this plan</th><th>Severity</th></tr></thead>
+      <tbody>
+        <tr><td>Redis is down, so the limiter fails</td><td>Allow normal requests and log an error. Block the login route.</td><td><span class="pill sev-major">Major</span></td></tr>
+        <tr><td>Stolen cookie</td><td>httpOnly, 1 hour expiry, secure flag in production.</td><td><span class="pill sev-major">Major</span></td></tr>
+        <tr><td>Open redirect after login</td><td>Only allow redirects to our own paths.</td><td><span class="pill sev-major">Major</span></td></tr>
+        <tr><td>Many users behind one office IP share the anonymous limit</td><td>Count per user once logged in. Revisit the 20 per minute number.</td><td><span class="pill sev-minor">Minor</span></td></tr>
+      </tbody>
+    </table></div>
+    <div class="panel" style="padding:16px;margin-top:16px">
+      <h3>How to undo</h3>
+      <p style="margin:8px 0 0">Remove <code>requireAuth</code> from <code>src/routes/api.ts</code> and the mounts from <code>src/server.ts</code>, and the app behaves as before. The 6 new files can stay unused and <code>.env.example</code> can be reverted. No data migration is made, so nothing needs rolling back in Redis or the database.</p>
+    </div>
+  </section>
+
+  <p class="foot">Example plan with assumed defaults. Nothing is committed or pushed until you review the diff.</p>
+</div>
+
+<script>
+(function(){
+var FILES=[
+ ['new','src/auth/oauth.ts','Starts login and handles the Google callback','A'],
+ ['new','src/auth/session.ts','Creates and checks the login cookie','A'],
+ ['new','src/auth/requireAuth.ts','Blocks requests that are not logged in','A'],
+ ['new','src/limit/rateLimit.ts','Counts requests and blocks when over the limit','B'],
+ ['new','src/limit/limits.config.ts','One place for all limit numbers','B'],
+ ['new','tests/auth.spec.ts and tests/limit.spec.ts','Prove both parts work','A, B'],
+ ['chg','src/server.ts','Mounts login routes and the limiter','A, B'],
+ ['chg','src/routes/api.ts','Adds requireAuth to private routes','A'],
+ ['chg','.env.example','Adds the new setting names','A, B']
+];
+var STEPS=[
+ {id:'A1',p:'a',t:'Settings',m:10,d:[['m','! CHANGED .env.example'],['a','+ GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET'],['a','+ OAUTH_REDIRECT_URL, SESSION_SECRET']],c:'App refuses to start if any of the 4 values is missing.'},
+ {id:'A2',p:'a',t:'Start login',m:40,d:[['a','+ NEW src/auth/oauth.ts'],['a','+   GET /auth/login: make a random state and PKCE verifier,'],['a','+   store them briefly, redirect the browser to Google']],c:'/auth/login redirects to Google with state and code_challenge in the address.'},
+ {id:'A3',p:'a',t:'Handle the callback',m:60,d:[['a','+ NEW src/auth/oauth.ts (same file)'],['a','+   GET /auth/callback: check state matches, swap code for tokens,'],['a','+   read the email and id, create or find the user']],c:'Wrong state gives 400. A valid code gives a logged-in cookie.'},
+ {id:'A4',p:'a',t:'Session cookie',m:30,d:[['a','+ NEW src/auth/session.ts'],['a','+   create(user) signs a 1 hour cookie'],['a','+   read(request) returns the user or nothing']],c:'A tampered or expired cookie is treated as logged out.'},
+ {id:'A5',p:'a',t:'Protect routes',m:40,d:[['a','+ NEW src/auth/requireAuth.ts   (401 when no user)'],['m','! CHANGED src/routes/api.ts     (private routes use requireAuth)'],['m','! CHANGED src/server.ts         (mount /auth routes)']],c:'Private route without cookie gives 401, with cookie gives 200. Public routes are unchanged.'},
+ {id:'B1',p:'b',t:'Limit numbers in one file',m:15,d:[['a','+ NEW src/limit/limits.config.ts'],['a','+   user: 100/min, anonymous IP: 20/min, login attempts: 5/min']],c:'Changing a number here changes behavior and nowhere else needs editing.'},
+ {id:'B2',p:'b',t:'The counter',m:45,d:[['a','+ NEW src/limit/rateLimit.ts'],['a','+   key = who (user id, else IP) + route group + current minute'],['a','+   add 1 in Redis, expire after 60s, block when over the limit'],['a','+   on block: status 429 and a Retry-After header']],c:'Request 101 in one minute gets 429. Minute 2 starts fresh.'},
+ {id:'B3',p:'b',t:'Attach to the app',m:30,d:[['m','! CHANGED src/server.ts'],['m','!   limiter runs before requireAuth on all routes'],['m','!   /auth/login gets the strict 5/min rule']],c:'Login brute force stops at attempt 6. Normal API use is unaffected.'},
+ {id:'B4',p:'b',t:'Tests for both parts',m:30,d:[['a','+ NEW tests/auth.spec.ts    (A2 to A5 checks)'],['a','+ NEW tests/limit.spec.ts   (B2 and B3 checks)']],c:'Both files pass in one run.'}
+];
+var OPTS=[
+ {t:'Login provider',o:[['Google OAuth directly','pick','Free, no passwords stored, about 3 hours.','Google accounts only.'],['Hosted service (Auth0, Clerk)','later','Many providers and ready-made screens.','Monthly cost and one more dependency.'],['Own passwords','no','Full control.','You store passwords, which is a large security job.']]},
+ {t:'Limiter method',o:[['Fixed window counter','pick','Easiest, one Redis call per request.','Up to 2x burst at the window edge.'],['Sliding window','later','Smoother limit. Worth it if bursts hurt.','More Redis work.'],['Token bucket','later','Controlled bursts allowed.','More state to keep.']]},
+ {t:'Session',o:[['Signed cookie','pick','No lookup on each request.','Cannot be cancelled before it expires.'],['Server session in Redis','later','Can be cancelled at once.','One extra lookup per request.']]}
+];
+var KEY='oauth-plan-done',done={};
+try{done=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){done={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(done))}catch(e){}}
+function $(i){return document.getElementById(i)}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+var total=STEPS.reduce(function(a,s){return a+s.m},0);
+
+function files(f){
+ $('ft').innerHTML=FILES.filter(function(r){return f==='all'||r[0]===f}).map(function(r){
+  return '<tr><td><span class="pill '+r[0]+'">'+(r[0]==='new'?'New':'Changed')+'</span></td><td><code>'+esc(r[1])+'</code></td><td>'+esc(r[2])+'</td><td>'+r[3]+'</td></tr>'}).join('');
+}
+function steps(){
+ var h='',last='';
+ STEPS.forEach(function(s){
+  if(s.p!==last){last=s.p;h+='<div class="part"><h3>'+(s.p==='a'?'Part A: Google login':'Part B: rate limiting')+'</h3><span class="mins">'+(s.p==='a'?'about 3 hours':'about 2 hours')+'</span></div>'}
+  h+='<article class="step '+s.p+'" id="st-'+s.id+'"><div class="sh"><span class="badge">'+s.id+'</span><h3>'+esc(s.t)+'</h3><span class="mins">'+s.m+' min</span></div>'
+   +'<div class="diff" role="group" aria-label="Diff for '+s.id+'">'+s.d.map(function(l){return '<div class="'+l[0]+'">'+esc(l[1])+'</div>'}).join('')+'</div>'
+   +'<label class="check"><input type="checkbox" data-id="'+s.id+'"><span>Check: '+esc(s.c)+'</span></label></article>';
+ });
+ $('steps').innerHTML=h;
+ Array.prototype.forEach.call(document.querySelectorAll('#steps input'),function(i){
+  i.checked=!!done[i.dataset.id];
+  i.addEventListener('change',function(){done[i.dataset.id]=i.checked;save();refresh()});
+ });
+}
+function timeline(){
+ var acc=0,h='<div class="ticks"><div></div><div><span>0</span><span>1 h</span><span>2 h</span><span>3 h</span><span>4 h</span><span>5 h</span></div><div></div></div>';
+ STEPS.forEach(function(s){
+  var l=acc/total*100,w=s.m/total*100;acc+=s.m;
+  h+='<div class="tr"><div class="name">'+s.id+' '+esc(s.t)+'</div><div class="lane"><i class="'+s.p+'" id="bar-'+s.id+'" style="left:'+l+'%;width:'+w+'%"></i></div><div class="mins">'+s.m+' min</div></div>';
+ });
+ $('tl').innerHTML=h;
+}
+function opts(){
+ $('opts').innerHTML=OPTS.map(function(d){
+  return '<div class="panel dec"><h3>'+d.t+'</h3><div class="cols">'+d.o.map(function(o){
+   var lab=o[1]==='pick'?'Picked':o[1]==='later'?'Later':'Rejected';
+   return '<div class="opt'+(o[1]==='pick'?' p':'')+'"><span class="pill '+o[1]+'">'+lab+'</span> <b>'+esc(o[0])+'</b><p>'+esc(o[2])+'</p><p class="l">Cost: '+esc(o[3])+'</p></div>'}).join('')+'</div></div>';
+ }).join('');
+}
+function refresh(){
+ var n=0,left=0;
+ STEPS.forEach(function(s){
+  var d=!!done[s.id];if(d)n++;else left+=s.m;
+  $('st-'+s.id).classList.toggle('done',d);
+  $('bar-'+s.id).classList.toggle('on',d);
+ });
+ $('pf').style.width=(n/STEPS.length*100)+'%';
+ $('pb').setAttribute('aria-valuenow',n);
+ $('pt').textContent=n+' of '+STEPS.length+' done';
+ $('left').textContent=left===0?'Done':(left>=60?(Math.floor(left/60)+' h'+(left%60?' '+(left%60)+' min':'')):left+' min');
+}
+files('all');steps();timeline();opts();refresh();
+Array.prototype.forEach.call(document.querySelectorAll('.seg button'),function(b){
+ b.addEventListener('click',function(){
+  Array.prototype.forEach.call(document.querySelectorAll('.seg button'),function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+  files(b.dataset.f);
+ });
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-go]'),function(b){
+ b.addEventListener('click',function(){var e=$(b.dataset.go);if(e)e.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'})});
+});
+})();
+</script>
